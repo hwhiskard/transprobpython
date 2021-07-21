@@ -26,7 +26,7 @@ def transprob(data,startDate = None,endDate = None):
     assert (pd.api.types.is_datetime64_any_dtype(data[1])), "Date Column must be in datetime64 format"
     
     
-    print('Transprob checks complete')
+    print('Transprob input data checks complete')
     
     
     #-------------- Define functions ------------------------------------------#
@@ -178,7 +178,6 @@ def transprob(data,startDate = None,endDate = None):
         totaltransCounts = totaltransCounts.sort_values(by = ['State1','State2'])
         
         totaltransCounts = totaltransCounts.drop(['Duplicated'],axis = 1)
-  
         return totaltransCounts  
      
       
@@ -191,8 +190,11 @@ def transprob(data,startDate = None,endDate = None):
 
         countperTime = pd.merge(totaltransCounts,TotalTimeInRating, left_on=['State1'], right_on = ['State'])
         countperTime['countperTime'] = countperTime['Count'] / countperTime['TimeinState']
+        
         countperTime = countperTime.drop(['Count','State','TimeinState'],axis = 1)
         countperTime.columns = ['State1','State2','Probability']
+        countperTime['Probability'] = countperTime['Probability'].fillna (0) # Fill any fields with Nan with 0. Accounts for probabilities that have 0 time in state
+
         return countperTime
     
     def calculateNonTransitionProbability(countperTime):
@@ -229,5 +231,12 @@ def transprob(data,startDate = None,endDate = None):
     
     #-------------- Test Output dataset ------------------------------------------#
     
+    transprobOut = pd.pivot_table(transitionProbability,values = 'Probability',index = 'State2',columns = 'State1')
     
-    return transitionProbability
+
+    # Check that the total probability of transitions from a state is 1 
+    for col in transprobOut.columns:
+        
+        assert transprobOut.loc[:,col].sum() == 1, "Output state probabilities do not sum to 1"
+
+    return transprobOut
