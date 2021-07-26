@@ -7,7 +7,9 @@ Created on Mon May  3 07:35:45 2021
 
 import numpy as np
 import pandas as pd
+from scipy.linalg import expm
 from itertools import product
+import datetime
 
 def transprob(data,startDate = None,endDate = None):
     
@@ -21,7 +23,11 @@ def transprob(data,startDate = None,endDate = None):
     '''
     #-------------- Test Dataset is in desired format ------------------------------------------#
     
+    
+    
     assert (data.shape[1] == 3), "Input data must only have 3 columns"
+    
+    data.columns = [0,1,2]
     
     assert (pd.api.types.is_datetime64_any_dtype(data[1])), "Date Column must be in datetime64 format"
     
@@ -36,15 +42,18 @@ def transprob(data,startDate = None,endDate = None):
         """
         Assign start and end date if not specified. Then calculate time range.                
         """
-    
+
         if startDate == None:
             
             startDate = data[1].min()
-            
+        else:
+            startDate = datetime.datetime.strptime(startDate, "%d-%b-%Y")   
+
         if endDate == None:
             
             endDate = data[1].max()
-        
+        else:
+            endDate = datetime.datetime.strptime(endDate, "%d-%b-%Y") 
         timePeriod = endDate - startDate
         
         return startDate,endDate,timePeriod
@@ -81,7 +90,8 @@ def transprob(data,startDate = None,endDate = None):
                 
                 else:
                      dataID.loc[idx,'TimeinState'] = endDate - dataID.loc[idx,1] 
-                
+            
+            dataID['TimeinState'] = dataID['TimeinState'].dt.days.astype('int32')
             TimeInState = dataID.groupby([0,2])['TimeinState'].sum()
             TimeInState = TimeInState.reset_index()
             TimeInState.columns = ['ID','State','TimeinState']
@@ -92,7 +102,7 @@ def transprob(data,startDate = None,endDate = None):
         TotalTimeinState = TotalTimeinState.groupby(['State'])['TimeinState'].sum()
         #TotalTimeinState.columns = ['State','TimeinState']
         
-        TotalTimeinState = TotalTimeinState / pd.Timedelta('365 days') # Convert to Years
+        TotalTimeinState = TotalTimeinState / 365.25 # Convert to Years
         TotalTimeinState = TotalTimeinState.reset_index()
 
         return TotalTimeinState
@@ -206,7 +216,7 @@ def transprob(data,startDate = None,endDate = None):
         sumPerState = countperTime.groupby('State1')['Probability'].sum()
         sumPerState = sumPerState.reset_index()
         sumPerState['State2'] = sumPerState['State1']
-        sumPerState['NonTranProb'] = 1 - sumPerState['Probability']
+        sumPerState['NonTranProb'] =  - sumPerState['Probability']
         sumPerState = sumPerState.drop('Probability',axis = 1)
         sumPerState.columns = ['State1','State2','Probability']
        
@@ -230,13 +240,16 @@ def transprob(data,startDate = None,endDate = None):
     transitionProbability = calculateNonTransitionProbability(countperTimeA)
     
     #-------------- Test Output dataset ------------------------------------------#
-    
-    transprobOut = pd.pivot_table(transitionProbability,values = 'Probability',index = 'State2',columns = 'State1')
-    
+
+    transprobOut = pd.pivot_table(transitionProbability,values = 'Probability',index = 'State1',columns = 'State2')
+    transprobOut = pd.DataFrame(expm(np.array(transprobOut))) 
+    print(transprobOut)
+
+
 
     # Check that the total probability of transitions from a state is 1 
-    for col in transprobOut.columns:
-        
-        assert transprobOut.loc[:,col].sum() == 1, "Output state probabilities do not sum to 1"
+    for _,row in transprobOut.iterrows():
+        print(row.sum())
+        assert abs(row.sum()) - 1 < 0.0001, "Output state probabilities do not sum to 1"
 
     return transprobOut
