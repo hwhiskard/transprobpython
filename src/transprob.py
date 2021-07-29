@@ -11,17 +11,26 @@ from scipy.linalg import expm
 from itertools import product
 import datetime
 
-def transprob(data,startDate = None,endDate = None):
+def transprob(data,DateFormatString,startDate = None,endDate = None):
     
     '''
     Transition probability function. Calculates probabilities using Duration algorithm   
-    Inputs:-  nx3 table with columns as Id, Date and State
+    Inputs:-  nx3 table with columns as Id, Date and State, e.g:
+                ID,Date,Rating
+                10283,10-Nov-1984,CCC
+                10283,12-May-1986,B
+                10283,29-Jun-1988,CCC
+                10283,12-Dec-1991,D
+                13326,09-Feb-1985,A
+                13326,24-Feb-1994,AA
+                13326,10-Nov-2000,BBB
+                14413,23-Dec-1982,B
            - Optional input for start and end date to limit calculations.
-           - 
+           - String denoting the date format, e.g. "%d-%b-%Y" for '10-Nov-2015'
     Output: 
         
     '''
-    #-------------- Test Dataset is in desired format ------------------------------------------#
+    #-------------- Check that Dataset is in desired format ------------------------------------------#
     
     
     
@@ -34,9 +43,22 @@ def transprob(data,startDate = None,endDate = None):
     
     print('Transprob input data checks complete')
     
+    def timer(fn):
+        from time import perf_counter
+        
+        def inner(*args, **kwargs):
+            start_time = perf_counter()
+            to_execute = fn(*args, **kwargs)
+            end_time = perf_counter()
+            execution_time = end_time - start_time
+            print('{0} took {1:.8f}s to execute'.format(fn.__name__, execution_time))
+            return to_execute
+        
+        return inner
+
     
     #-------------- Define functions ------------------------------------------#
-    
+    @timer
     def CalulateTotalTimePeriod(startDate,endDate):
     
         """
@@ -47,17 +69,18 @@ def transprob(data,startDate = None,endDate = None):
             
             startDate = data[1].min()
         else:
-            startDate = datetime.datetime.strptime(startDate, "%d-%b-%Y")   
+            startDate = datetime.datetime.strptime(startDate, DateFormatString)   
 
         if endDate == None:
             
             endDate = data[1].max()
         else:
-            endDate = datetime.datetime.strptime(endDate, "%d-%b-%Y") 
+            endDate = datetime.datetime.strptime(endDate, DateFormatString) 
         timePeriod = endDate - startDate
         
         return startDate,endDate,timePeriod
-
+    
+    @timer
     def FilterDatawithDates(Data,startDate,endDate):
         
         '''
@@ -68,6 +91,7 @@ def transprob(data,startDate = None,endDate = None):
         
         return Data
 
+    @timer
     def TimeSpentInRating(data,endDate):
         
         """      
@@ -75,24 +99,24 @@ def transprob(data,startDate = None,endDate = None):
         """
         
         TotalTimeinState = pd.DataFrame(columns = ['ID','State','TimeinState'])
+        
+        # Perform individually for every Id
         for ID in data[0].unique():
         
             dataID = data[data[0] == ID]
             dataID = dataID.sort_values(by = 1, ascending = True)
-            dataID = dataID.reset_index(drop = True)
+            #dataID = dataID.reset_index(drop = True)
             dataID['TimeinState'] = 0
             dataID['TimeinState'] = dataID['TimeinState'].astype('timedelta64[ns]')
-            for idx, row in dataID.iterrows():
-                
-                if idx != dataID.index.max():
-                
-                    dataID.loc[idx,'TimeinState'] = dataID.loc[idx+1,1] - dataID.loc[idx,1] 
-                
-                else:
-                     dataID.loc[idx,'TimeinState'] = endDate - dataID.loc[idx,1] 
+            
+            dataIdShift = dataID.shift(periods = -1)
+            dataID['TimeinState'] =   dataIdShift[1] - dataID[1]
+            
+            dataID.loc[dataID.index[-1],'TimeinState'] = endDate - dataID.loc[dataID.index[-1],1]
             
             dataID['TimeinState'] = dataID['TimeinState'].dt.days.astype('int32')
             TimeInState = dataID.groupby([0,2])['TimeinState'].sum()
+            
             TimeInState = TimeInState.reset_index()
             TimeInState.columns = ['ID','State','TimeinState']
             
@@ -100,7 +124,6 @@ def transprob(data,startDate = None,endDate = None):
         
 
         TotalTimeinState = TotalTimeinState.groupby(['State'])['TimeinState'].sum()
-        #TotalTimeinState.columns = ['State','TimeinState']
         
         TotalTimeinState = TotalTimeinState / 365.25 # Convert to Years
         TotalTimeinState = TotalTimeinState.reset_index()
@@ -109,7 +132,7 @@ def transprob(data,startDate = None,endDate = None):
     
     
     
-    
+    @timer
     def IDTransitionCount(data):
         
         
@@ -122,7 +145,6 @@ def transprob(data,startDate = None,endDate = None):
         """
         
         transcounts = pd.DataFrame(columns = ['ID','State1','State2','Count'])
-        
         for ID in data[0].unique():
             
             dataID = data[data[0] == ID]
@@ -133,39 +155,46 @@ def transprob(data,startDate = None,endDate = None):
             dataID[2] = dataID[dataID[2] != dataID.loc[:,2].shift(1)][2]
             dataID = dataID[pd.notnull(dataID[2])]
             dataID = dataID.reset_index(drop = True)
-            
-            
-                    
-                    
-            
+                
             count = 0
+
+            DataSum = dataID
+            DataSum[3] = dataID[2].shift(periods = -1)
+           
+            DataGrup = DataSum.groupby([0,2,3])[1].count()
+            DataGrup = DataGrup.reset_index(drop = False)
+            DataGrup.columns = ['ID','State1','State2','Count']
+            #print(DataGrup)  
+            
+            transcounts = transcounts.append(DataGrup,ignore_index=True)
             # Could be simplified using shift
-            for i in range(0,dataID.shape[0]-1,1):
+            # for i in range(0,dataID.shape[0]-1,1):
                 
-                state1 = dataID.loc[i,2]
-                state2 = dataID.loc[i+1,2]
                 
-                if ((transcounts['ID'] == ID) & (transcounts['State1'] == state1) &  (transcounts['State2'] == state2)).any():
-                    
-                    # Adds to the count if the state transition has already occurred
-                    
-                    index = transcounts[(transcounts['ID'] == ID) & (transcounts['State1'] == state1) &  (transcounts['State2'] == state2)].index
-                    count = transcounts.loc[index,'Count'].max()
-                    
-                    transcounts.loc[index,'Count'] = count +1
-                else:    
-                    
-                    # If transition has not occurred record with count = 1 created
-                    
-                    tCount = pd.DataFrame({'ID':ID,'State1':dataID.loc[i,2],'State2':dataID.loc[i+1,2],'Count':1},index = [0])
-                    transcounts = transcounts.append(tCount,ignore_index=True)    
+
+            #     state1 = dataID.loc[i,2]
+            #     state2 = dataID.loc[i+1,2]
                 
-        
-        
+            #     if ((transcounts['ID'] == ID) & (transcounts['State1'] == state1) &  (transcounts['State2'] == state2)).any():
+                    
+            #         # Adds to the count if the state transition has already occurred
+                    
+            #         index = transcounts[(transcounts['ID'] == ID) & (transcounts['State1'] == state1) &  (transcounts['State2'] == state2)].index
+            #         count = transcounts.loc[index,'Count'].max()
+                    
+            #         transcounts.loc[index,'Count'] = count +1
+            #     else:    
+                    
+            #         # If transition has not occurred record with count = 1 created
+                    
+            #         tCount = pd.DataFrame({'ID':ID,'State1':dataID.loc[i,2],'State2':dataID.loc[i+1,2],'Count':1},index = [0])
+            #         transcounts = transcounts.append(tCount,ignore_index=True)    
+                
         
         
         return transcounts
 
+    @timer
     def GroupTransitionCounts(transcounts):
         
         '''
@@ -191,7 +220,7 @@ def transprob(data,startDate = None,endDate = None):
         return totaltransCounts  
      
       
-    
+    @timer
     def countperTime(totaltransCounts,TotalTimeInRating):
         
         '''
@@ -207,6 +236,7 @@ def transprob(data,startDate = None,endDate = None):
 
         return countperTime
     
+    @timer
     def calculateNonTransitionProbability(countperTime):
         
         '''
@@ -225,8 +255,10 @@ def transprob(data,startDate = None,endDate = None):
         return transitionProbability
     #-------------- Call functions ------------------------------------------#
     
+
+
     startDate,endDate,timePeriod = CalulateTotalTimePeriod(startDate,endDate)
-    
+     
     data = FilterDatawithDates(data,startDate,endDate)
     
     TotalTimeInRating = TimeSpentInRating(data,endDate)
@@ -243,13 +275,13 @@ def transprob(data,startDate = None,endDate = None):
 
     transprobOut = pd.pivot_table(transitionProbability,values = 'Probability',index = 'State1',columns = 'State2')
     transprobOut = pd.DataFrame(expm(np.array(transprobOut))) 
-    print(transprobOut)
+  
 
 
 
     # Check that the total probability of transitions from a state is 1 
     for _,row in transprobOut.iterrows():
-        print(row.sum())
+ 
         assert abs(row.sum()) - 1 < 0.0001, "Output state probabilities do not sum to 1"
 
     return transprobOut
