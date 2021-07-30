@@ -99,9 +99,9 @@ def transprob(data,DateFormatString,startDate = None,endDate = None):
         """
         
         TotalTimeinState = pd.DataFrame(columns = ['ID','State','TimeinState'])
-        
+        IDList = data[0].unique()
         # Perform individually for every Id
-        for ID in data[0].unique():
+        for ID in IDList:
         
             dataID = data[data[0] == ID]
             dataID = dataID.sort_values(by = 1, ascending = True)
@@ -143,9 +143,9 @@ def transprob(data,DateFormatString,startDate = None,endDate = None):
         
         
         """
-        
+        IDList = data[0].unique()
         transcounts = pd.DataFrame(columns = ['ID','State1','State2','Count'])
-        for ID in data[0].unique():
+        for ID in IDList:
             
             dataID = data[data[0] == ID]
             dataID = dataID.sort_values(by = 1, ascending = True)
