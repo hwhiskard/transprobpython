@@ -201,20 +201,27 @@ def calculate_non_transition_probability(count_time):
 def trans_prob(data: pd.DataFrame, date_format_string: str, start_date: str = None,
                end_date: str = None) -> pd.DataFrame:
     """
-    Transition probability function. Calculates probabilities using Duration algorithm
-    Inputs:-  nx3 table with columns as Id, Date and State, e.g:
-                ID,Date,Rating
-                10283,10-Nov-1984,CCC
-                10283,12-May-1986,B
-                10283,29-Jun-1988,CCC
-                10283,12-Dec-1991,D
-                13326,09-Feb-1985,A
-                13326,24-Feb-1994,AA
-                13326,10-Nov-2000,BBB
-                14413,23-Dec-1982,B
-           - Optional input for start and end date to limit calculations.
-           - String denoting the date format, e.g. "%d-%b-%Y" for '10-Nov-2015'
-    Output:
+    Transition probability function. Calculates probabilities using Duration algorithm. 
+
+    Parameters
+    ----------
+    Data:  nx3 table with columns as Id, Date and State, e.g:
+        ID,Date,Rating 
+
+        10283,10-Nov-1984,CCC
+
+        10283,12-May-1986,B
+
+        10283,29-Jun-1988,CCC
+
+    date_format_string: Denotes the date format of input data, e.g. "%d-%b-%Y" for '10-Nov-2015'
+    start_date: Optional parameter to limit data on start date
+    end_date: Optional parameter to limit data on end date
+
+    
+    Returns
+    -------
+    trans_prob_out: Transition probability table with probability of transition for each state combination
 
     """
     # -------------- Check that Dataset is in desired format ------------------------------------------#
