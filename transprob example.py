@@ -4,21 +4,19 @@ Created on Sun May  2 06:43:53 2021
 
 @author: WHI93526
 """
-#%%
+# %%
 import numpy as np
 import pandas as pd
 import time
-from src.transprob import transprob
+from src.transprob import trans_prob
 
 examplePath = r"C:\Users\WHI93526\OneDrive - Mott MacDonald\Python\transprob\transprobpython\example data\FinancialRating.csv"
 
-creditExample = pd.read_csv(examplePath,delimiter=',',header=0,parse_dates= [1])
-
+creditExample = pd.read_csv(examplePath, delimiter=',', header=0, parse_dates=[1])
 
 creditExample["ID"] = creditExample["ID"].astype(np.int64)
 creditExample["Date"] = creditExample["Date"].astype(np.datetime64)
 creditExample["Rating"] = creditExample["Rating"].astype('str')
-
 
 # Expected Output from Matlab:
 
@@ -35,17 +33,15 @@ creditExample["Rating"] = creditExample["Rating"].astype('str')
 
 startTime = time.time()
 
-transitionProbabilityShort = transprob(creditExample[0:10],DateFormatString= "%d-%b-%Y",startDate= None,endDate= '10-Nov-2015')
-
-
+transitionProbabilityShort = trans_prob(creditExample[0:10], date_format_string="%d-%b-%Y",
+                                        start_date=None, end_date='10-Nov-2015')
 
 print(creditExample[0:10])
 print(transitionProbabilityShort)
 executionTime = (time.time() - startTime)
 print('Execution time in for test matrix (s): ' + str(executionTime))
 
-
-#%%
+# %%
 
 # Expected Output from Matlab:
 
@@ -63,8 +59,8 @@ print('Execution time in for test matrix (s): ' + str(executionTime))
 
 startTime = time.time()
 
-transitionProbabilityFull = transprob(creditExample,DateFormatString= "%d-%b-%Y",startDate= None,endDate= '10-Nov-2015')
-
+transitionProbabilityFull = trans_prob(creditExample, date_format_string="%d-%b-%Y",
+                                       start_date=None, end_date='10-Nov-2015')
 
 print(transitionProbabilityFull)
 
