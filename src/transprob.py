@@ -12,22 +12,7 @@ from itertools import product
 import datetime
 
 
-def timer(fn):
-    from time import perf_counter
-
-    def inner(*args, **kwargs):
-        start_time = perf_counter()
-        to_execute = fn(*args, **kwargs)
-        end_time = perf_counter()
-        execution_time = end_time - start_time
-        print('{0} took {1:.8f}s to execute'.format(fn.__name__, execution_time))
-        return to_execute
-
-    return inner
-
-
 # -------------- Define functions ------------------------------------------#
-@timer
 def calculate_total_time_period(data, start_date, end_date, date_format_string):
     """
     Assign start and end date if not specified. Then calculate time range.
@@ -48,7 +33,6 @@ def calculate_total_time_period(data, start_date, end_date, date_format_string):
     return start_date, end_date, time_period
 
 
-@timer
 def filter_data_with_dates(data, start_date, end_date):
     """
     Filters the dataset to be between the start and end dates
@@ -59,7 +43,6 @@ def filter_data_with_dates(data, start_date, end_date):
     return data
 
 
-@timer
 def time_spent_in_rating(data, end_date):
     """
     Calculates the total time spent in a single code. First calculated on an Id level basis and then aggregated by state
@@ -101,7 +84,6 @@ def time_spent_in_rating(data, end_date):
     return total_time_in_state
 
 
-@timer
 def ID_transition_count(data):
     """
 
@@ -136,7 +118,6 @@ def ID_transition_count(data):
     return trans_counts
 
 
-@timer
 def group_transition_counts(trans_counts, state_list):
     """
     Group counts and fill in non occurring transitions
@@ -163,16 +144,18 @@ def group_transition_counts(trans_counts, state_list):
     return total_trans_counts
 
 
-@timer
+
 def count_per_time(total_trans_counts, total_time_in_state):
     """
     Divides counts of transitions by total time spent in the State.
     """
 
     count_time = pd.merge(total_trans_counts, total_time_in_state, left_on=['State1'], right_on=['State'])
+
     count_time['countperTime'] = count_time['Count'] / count_time['TimeinState']
 
-    count_time = count_time.drop(['Count', 'State', 'TimeinState'], axis=1)
+    count_time = count_time.drop(['index', 'Count', 'State', 'TimeinState'], axis = 1)
+
     count_time.columns = ['State1', 'State2', 'Probability']
     # Fill any fields with Nan with 0. Accounts for probabilities that have 0 time in state
     count_time['Probability'] = count_time['Probability'].fillna(0)
@@ -180,7 +163,6 @@ def count_per_time(total_trans_counts, total_time_in_state):
     return count_time
 
 
-@timer
 def calculate_non_transition_probability(count_time):
     '''
     Calculate the probability of staying in state and create full transition probability table
