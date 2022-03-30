@@ -10,7 +10,7 @@ import pandas as pd
 import time
 from src.transprob import trans_prob
 
-examplePath = r".\example data\FinancialRating.csv"
+examplePath = "example_data\FinancialRating.csv"
 
 creditExample = pd.read_csv(examplePath, delimiter=',', header=0, parse_dates=[1])
 
